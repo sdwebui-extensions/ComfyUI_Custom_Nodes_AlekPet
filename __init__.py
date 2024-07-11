@@ -129,7 +129,7 @@ def checkFolderIsset():
         dir_ = os.path.join(extension_folder, d)
         if not os.path.exists(dir_):
             log(f"* Dir <{d}> is not found, create...")
-            os.mkdir(dir_)
+            os.makedirs(dir_, exist_ok=True)
             log(f"* Dir <{d}> created!")
 
 
@@ -151,13 +151,13 @@ def installNodes():
             os.remove(filePath)
 
     # Remove old folder if exist
-    oldDirNodes = os.path.join(folder_comfyui_web_extensions, "AlekPet_Nodes")
-    if os.path.exists(oldDirNodes):
-        shutil.rmtree(oldDirNodes)
+    # oldDirNodes = os.path.join(folder_comfyui_web_extensions, "AlekPet_Nodes")
+    # if os.path.exists(oldDirNodes):
+    #     shutil.rmtree(oldDirNodes)
 
     # Clear folder web_alekpet_nodes
-    if os.path.exists(web_extensions_dir):
-        shutil.rmtree(web_extensions_dir)
+    # if os.path.exists(web_extensions_dir):
+    #     shutil.rmtree(web_extensions_dir)
 
     checkFolderIsset()
 
