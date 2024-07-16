@@ -104,6 +104,10 @@ function makeModal({
     );
 }
 
+function findWidget(node, value, attr = "name", func = "find") {
+  return node?.widgets ? node.widgets[func]((w) => w[attr] === value) : null;
+}
+
 function animateTransitionProps(
   el,
   props = { opacity: 1 },
@@ -134,7 +138,7 @@ function animateClick(target, opacityVal = 0.9) {
   if (target?.isAnimating) return;
 
   const hide = +target.style.opacity === 0;
-  animateTransitionProps(target, {
+  return animateTransitionProps(target, {
     opacity: hide ? opacityVal : 0,
   }).then(() => showHide({ elements: [target], hide: !hide }));
 }
@@ -189,9 +193,16 @@ function makeElement(tag, attrs = {}) {
 
 function isValidStyle(opt, strColor) {
   let op = new Option().style;
-  if (!op.hasOwnProperty(opt)) return false;
+  if (!op.hasOwnProperty(opt))
+    return { result: false, color: "", color_hex: "" };
+
   op[opt] = strColor;
-  return op[opt] !== "";
+
+  return {
+    result: op[opt] !== "",
+    color_rgb: op[opt],
+    color_hex: rgbToHex(op[opt]),
+  };
 }
 
 function rgbToHex(rgb) {
@@ -220,6 +231,103 @@ async function getDataJSON(url) {
   }
 }
 
+function deepMerge(target, source) {
+  if (source?.nodeType) return;
+  for (let key in source) {
+    if (source[key] instanceof Object && key in target) {
+      Object.assign(source[key], deepMerge(target[key], source[key]));
+    }
+  }
+
+  Object.assign(target || {}, source);
+  return target;
+}
+
+const THEME_MODAL_WINDOW_BASE = {
+  stylesTitle: {
+    background: "#8f210f",
+    padding: "5px",
+    borderRadius: "6px",
+    marginBottom: "5px",
+    alignSelf: "stretch",
+  },
+  stylesBox: {
+    background: "auto",
+    color: "auto",
+    border: 0,
+    boxShadow: "none",
+    padding: 0,
+    fontFamily: "sans-serif",
+  },
+  stylesWrapper: {
+    display: "flex",
+    background: "#3b2222",
+    justifyContent: "center",
+    flexDirection: "column",
+    alignItems: "stretch",
+    textAlign: "center",
+    borderRadius: "6px",
+    boxShadow: "3px 3px 6px #141414",
+    border: "1px solid #f91b1b",
+    color: "white",
+    padding: "6px",
+    fontFamily: "sans-serif",
+    lineHeight: 1.5,
+    maxWidth: "300px",
+  },
+  stylesClose: { background: "#3b2222" },
+};
+
+const THEMES_MODAL_WINDOW = {
+  error: { ...THEME_MODAL_WINDOW_BASE },
+  warning: {
+    stylesTitle: {
+      ...THEME_MODAL_WINDOW_BASE.stylesTitle,
+      background: "#e99818",
+    },
+    stylesBox: { ...THEME_MODAL_WINDOW_BASE.stylesBox },
+    stylesWrapper: {
+      ...THEME_MODAL_WINDOW_BASE.stylesWrapper,
+      background: "#594e32",
+      boxShadow: "3px 3px 6px #141414",
+      border: "1px solid #e99818",
+    },
+    stylesClose: {
+      ...THEME_MODAL_WINDOW_BASE.stylesClose,
+      background: "#594e32",
+    },
+  },
+  normal: {
+    stylesTitle: {
+      ...THEME_MODAL_WINDOW_BASE.stylesTitle,
+      background: "#108f0f",
+    },
+    stylesBox: { ...THEME_MODAL_WINDOW_BASE.stylesBox },
+    stylesWrapper: {
+      ...THEME_MODAL_WINDOW_BASE.stylesWrapper,
+      background: "#223b2a",
+      boxShadow: "3px 3px 6px #141414",
+      border: "1px solid #108f0f",
+    },
+    stylesClose: {
+      ...THEME_MODAL_WINDOW_BASE.stylesClose,
+      background: "#223b2a",
+    },
+  },
+};
+
+const defaultOptions = {
+  auto: {
+    autohide: false,
+    autoshow: false,
+    autoremove: false,
+    propStyles: { opacity: 0 },
+    propPreStyles: {},
+    timewait: 2000,
+  },
+  parent: null,
+};
+
 function createWindowModal({
   textTitle = "Message",
   textBody = "Hello world!",
@@ -236,7 +344,23 @@ function createWindowModal({
   stylesClose = {},
   classesFooter = [],
   stylesFooter = {},
+  options = defaultOptions,
 } = {}) {
+  // Check all options exist
+  options = deepMerge({ ...defaultOptions }, options);
+
+  const {
+    parent,
+    auto: {
+      autohide,
+      autoshow,
+      autoremove,
+      timewait,
+      propStyles,
+      propPreStyles,
+    },
+  } = options;
+
   // Function past text(html)
   function addText(text, parent) {
     if (!parent) return;
@@ -316,6 +440,7 @@ function createWindowModal({
     flexDirection: "column",
     alignItems: "flex-end",
     gap: "5px",
+    textWrap: "wrap",
     ...stylesBody,
   });
   // Add text (html) to body
@@ -377,6 +502,26 @@ function createWindowModal({
 
   wrapper_settings.append(close__box__button, box__settings);
 
+  if (parent && parent.nodeType === 1) {
+    parent.append(wrapper_settings);
+
+    if (autoshow) {
+      animateClick(wrapper_settings).then(
+        () =>
+          autohide &&
+          setTimeout(
+            () =>
+              animateTransitionProps(
+                wrapper_settings,
+                { ...propStyles },
+                { ...propPreStyles }
+              ).then(() => autoremove && parent.removeChild(wrapper_settings)),
+            timewait
+          )
+      );
+    }
+  }
+
   return wrapper_settings;
 }
 
@@ -391,4 +536,6 @@ export {
   isEmptyObject,
   isValidStyle,
   rgbToHex,
+  findWidget,
+  THEMES_MODAL_WINDOW,
 };

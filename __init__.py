@@ -1,6 +1,6 @@
 # Title: ComfyUI Install Customs Nodes and javascript files
 # Author: AlekPet
-# Version: 2024.06.27
+# Version: 2024.07.15
 import os
 import importlib.util
 import subprocess
@@ -71,9 +71,7 @@ def checkModules(nodeElement):
     file_requir = os.path.join(extension_folder, nodeElement, "requirements.txt")
     if os.path.exists(file_requir):
         log("  -> File 'requirements.txt' found!")
-        module_install(
-            [sys.executable, "-s", "-m", "pip", "install", "-r", file_requir]
-        )
+        module_install([sys.executable, "-m", "pip", "install", "-r", file_requir])
 
 
 def addComfyUINodesToMapping(nodeElement):
@@ -215,6 +213,7 @@ from .GoogleTranslateNode.google_translate_node import (
 )
 from .PainterNode.painter_node import PainterNode
 from .PoseNode.pose_node import PoseNode
+from .IDENode.ide_node import IDENode
 
 
 NODE_CLASS_MAPPINGS = {
@@ -229,6 +228,7 @@ NODE_CLASS_MAPPINGS = {
     "GoogleTranslateTextNode": GoogleTranslateTextNode,
     "PainterNode": PainterNode,
     "PoseNode": PoseNode,
+    "IDENode": IDENode,
 }
 
 
@@ -244,4 +244,5 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "GoogleTranslateTextNode": "Google Translate Text Node",
     "PainterNode": "Painter Node",
     "PoseNode": "Pose Node",
+    "IDENode": "IDE Node",
 }
