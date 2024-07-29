@@ -183,7 +183,7 @@ def installNodes():
             # Loading node info
             printColorInfo(f"Node -> {nodeElement} [Loading]")
 
-            checkModules(nodeElement)
+            # checkModules(nodeElement)
             # addComfyUINodesToMapping(nodeElement) # dynamic class nodes append in mappings
 
     printColorInfo(f"### [END] ComfyUI AlekPet Nodes ###", "\033[1;35m")
