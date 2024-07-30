@@ -35,7 +35,7 @@ DEBUG = False
 humanReadableTextReg = re.compile("(?<=[a-z])([A-Z])|(?<=[A-Z])([A-Z][a-z]+)")
 module_name_cut_version = re.compile("[>=<]")
 
-installed_modules = list(m[1] for m in pkgutil.iter_modules(None))
+# installed_modules = list(m[1] for m in pkgutil.iter_modules(None))
 
 
 def log(*text):
