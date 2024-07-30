@@ -3,10 +3,10 @@ import requests
 import json
 from server import PromptServer
 from aiohttp import web
-from googletrans import Translator, LANGUAGES
+from googletrans import LANGUAGES
 
 ### =====  GoogleTranslate Nodes [googletrans module]  ===== ###
-translator = Translator()
+translator = None
 
 google_translation_key = os.environ.get("GOOGLE_TRANSLATION_API_KEY")
 
@@ -52,6 +52,10 @@ class TranslationResult:
 
 
 def translate(prompt, srcTrans=None, toTrans=None):
+    global translator
+    if translator is None:
+        from googletrans import Translator
+        translator = Translator()
     if not srcTrans:
         srcTrans = "auto"
 
