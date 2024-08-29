@@ -1,7 +1,7 @@
 /*
  * Title: PainterNode ComflyUI from ControlNet
  * Author: AlekPet
- * Version: 2024.06.22
+ * Version: 2024.08.21
  * Github: https://github.com/AlekPet/ComfyUI_Custom_Nodes_AlekPet
  */
 
@@ -11,6 +11,7 @@ import { fabric } from "./lib/painternode/fabric.js";
 import "./lib/painternode/mybrush.js";
 import { svgSymmetryButtons } from "./lib/painternode/brushes.js";
 import { toRGBA, getColorHEX, LS_Class } from "./lib/painternode/helpers.js";
+import { PainterStorageDialog } from "./lib/painternode/dialogs.js";
 import { addStylesheet } from "../../scripts/utils.js";
 import {
   showHide,
@@ -2275,18 +2276,21 @@ app.registerExtension({
       name: "🔸 Painter Node",
       defaultValue: false,
       type: (name, sett, val) => {
+        const newUI = document.querySelector(".p-dialog-header");
         return makeElement("tr", {
           children: [
-            makeElement("td", {
-              children: [
-                makeElement("label", {
-                  textContent: name,
-                  for: convertIdClass(
-                    `${extensionName}.save_settings_json_checkbox`
-                  ),
-                }),
-              ],
-            }),
+            !newUI
+              ? makeElement("td", {
+                  children: [
+                    makeElement("label", {
+                      textContent: name,
+                      for: convertIdClass(
+                        `${extensionName}.save_settings_json_checkbox`
+                      ),
+                    }),
+                  ],
+                })
+              : "",
             makeElement("td", {
               children: [
                 makeElement("label", {
@@ -2324,15 +2328,16 @@ app.registerExtension({
                     }),
                   ],
                 }),
-                // makeElement("button", {
-                //   textContent: "Managing Data",
-                //   onclick: () => {
-                //     console.log("Dev...");
-                //   },
-                //   style: {
-                //     display: "block",
-                //   },
-                // }),
+                makeElement("button", {
+                  textContent: "Managing Data",
+                  onclick: () => {
+                    app.ui.settings.element.close();
+                    new PainterStorageDialog().show(painters_settings_json);
+                  },
+                  style: {
+                    display: "block",
+                  },
+                }),
               ],
             }),
           ],
