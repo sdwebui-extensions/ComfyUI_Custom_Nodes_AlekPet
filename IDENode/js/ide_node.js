@@ -252,8 +252,10 @@ app.registerExtension({
                   autohide: true,
                   autoremove: true,
                   autoshow: true,
-                  timewait: 2000,
+                  timewait: 1000,
                 },
+                close: { showClose: false },
+                overlay: { overlay_enabled: true },
                 parent: widget.codeElement,
               },
             });
@@ -281,7 +283,7 @@ app.registerExtension({
             if (
               !makeValidVariable(
                 varName,
-                `<h3>Variable for <span style="color: limegreen">Input</span> name is incorrect!</h3><ul style="text-align:left;padding: 2px;margin-left: 5%;"><li>starts with a number</li><li>has spaces or tabs</li><li>is empty</li><li>variable name is greater ${MAX_CHAR_VARNAME}</li></ul>`
+                `<h3 style="margin: 0;">Variable for <span style="color: limegreen">Input</span> name is incorrect!</h3><ul style="text-align:left;padding: 2px;margin-left: 5%;"><li>starts with a number</li><li>has spaces or tabs</li><li>is empty</li><li>variable name is greater ${MAX_CHAR_VARNAME}</li></ul>`
               )
             )
               return;
@@ -295,17 +297,14 @@ app.registerExtension({
             if (
               !makeValidVariable(
                 type,
-                `<h3>Type value is incorrect!</h3><ul style="text-align:left;padding: 2px;"><li>has spaces or tabs</li><li>is empty</li><li>type value length is greater ${MAX_CHAR_VARNAME}</li></ul>`,
+                `<h3 style="margin: 0;">Type value is incorrect!</h3><ul style="text-align:left;padding: 2px;"><li>has spaces or tabs</li><li>is empty</li><li>type value length is greater ${MAX_CHAR_VARNAME}</li></ul>`,
                 /^[*a-z_][a-z0-9_]*$/i
               )
             )
               return;
 
             const currentWidth = node.size[0];
-            node.addInput(
-              `${varName}{${type === "*" ? "ANY" : type.toUpperCase()}}`,
-              type
-            );
+            node.addInput(varName, type);
             node.setSize([currentWidth, node.size[1]]);
           }
         );
@@ -330,7 +329,7 @@ app.registerExtension({
             if (
               !makeValidVariable(
                 varName,
-                `<h3>Variable for <span style="color: pink">Output</span> name is incorrect!</h3><ul style="text-align:left;padding: 2px;margin-left: 5%;"><li>starts with a number</li><li>has spaces or tabs</li><li>is empty</li><li>variable name is greater ${MAX_CHAR_VARNAME}</li></ul>`
+                `<h3 style="margin: 0;">Variable for <span style="color: pink">Output</span> name is incorrect!</h3><ul style="text-align:left;padding: 2px;margin-left: 5%;"><li>starts with a number</li><li>has spaces or tabs</li><li>is empty</li><li>variable name is greater ${MAX_CHAR_VARNAME}</li></ul>`
               )
             )
               return;
@@ -344,16 +343,13 @@ app.registerExtension({
             if (
               !makeValidVariable(
                 type,
-                `<h3>Type value is incorrect!</h3><ul style="text-align:left;padding: 2px;"><li>has spaces or tabs</li><li>is empty</li><li>type value length is greater ${MAX_CHAR_VARNAME}</li></ul>`,
+                `<h3 style="margin: 0;">Type value is incorrect!</h3><ul style="text-align:left;padding: 2px;"><li>has spaces or tabs</li><li>is empty</li><li>type value length is greater ${MAX_CHAR_VARNAME}</li></ul>`,
                 /^[*a-z_][a-z0-9_]*$/i
               )
             )
               return;
 
-            node.addOutput(
-              `${varName}{${type === "*" ? "ANY" : type.toUpperCase()}}`,
-              type
-            );
+            node.addOutput(varName, type);
             node.setSize([currentWidth, node.size[1]]);
           }
         );
@@ -392,8 +388,8 @@ app.registerExtension({
         this.name = nodeName;
 
         // Create default inputs, when first create node
-        if (!this?.inputs) {
-          ["var1{ANY}", "var2{ANY}", "var3{ANY}"].forEach((inputName) => {
+        if (!this?.inputs?.length) {
+          ["var1", "var2", "var3"].forEach((inputName) => {
             const currentWidth = this.size[0];
             this.addInput(inputName, "*");
             this.setSize([currentWidth, this.size[1]]);
@@ -445,8 +441,10 @@ app.registerExtension({
                     autohide: true,
                     autoremove: true,
                     autoshow: true,
-                    timewait: 2000,
+                    timewait: 1000,
                   },
+                  close: { showClose: false },
+                  overlay: { overlay_enabled: true },
                   parent: widgetEditor.codeElement,
                 },
               });
@@ -478,6 +476,51 @@ app.registerExtension({
         this.setSize([530, this.size[1]]);
 
         return ret;
+      };
+
+      const onDrawForeground = nodeType.prototype.onDrawForeground;
+      nodeType.prototype.onDrawForeground = function (ctx) {
+        const r = onDrawForeground?.apply?.(this, arguments);
+
+        if (this.flags?.collapsed) return r;
+
+        if (this?.outputs?.length) {
+          for (let o = 0; o < this.outputs.length; o++) {
+            const { name, type } = this.outputs[o];
+            const colorType = LGraphCanvas.link_type_colors[type.toUpperCase()];
+            const nameSize = ctx.measureText(name);
+            const typeSize = ctx.measureText(
+              `[${type === "*" ? "any" : type.toLowerCase()}]`
+            );
+
+            ctx.fillStyle = colorType === "" ? "#AAA" : colorType;
+            ctx.font = "12px Arial, sans-serif";
+            ctx.textAlign = "right";
+            ctx.fillText(
+              `[${type === "*" ? "any" : type.toLowerCase()}]`,
+              this.size[0] - nameSize.width - typeSize.width,
+              o * 20 + 19
+            );
+          }
+        }
+
+        if (this?.inputs?.length) {
+          for (let i = 0; i < this.inputs.length; i++) {
+            const { name, type } = this.inputs[i];
+            const colorType = LGraphCanvas.link_type_colors[type.toUpperCase()];
+            const nameSize = ctx.measureText(name);
+
+            ctx.fillStyle = colorType === "" ? "#AAA" : colorType;
+            ctx.font = "12px Arial, sans-serif";
+            ctx.textAlign = "left";
+            ctx.fillText(
+              `[${type === "*" ? "any" : type.toLowerCase()}]`,
+              nameSize.width + 25,
+              i * 20 + 19
+            );
+          }
+        }
+        return r;
       };
 
       // Node Configure
@@ -551,13 +594,12 @@ app.registerExtension({
           for (const output_idx in this.outputs) {
             const output = this.outputs[output_idx];
 
-            if (["result{ANY}"].includes(output.name)) continue;
+            if (output.name === "result") continue;
 
             options.splice(past_index + 1, 0, {
               content: `Remove Output ${output.name}`,
               callback: (e) => {
                 const currentWidth = this.size[0];
-                console.log(output);
                 if (output.link) {
                   app.graph.removeLink(output.link);
                 }

@@ -34,7 +34,7 @@ DEBUG = False
 # NODE_CLASS_MAPPINGS = dict()  # dynamic class nodes append in mappings
 # NODE_DISPLAY_NAME_MAPPINGS = dict()  # dynamic display names nodes append mappings names
 
-humanReadableTextReg = re.compile("(?<=[a-z])([A-Z])|(?<=[A-Z])([A-Z][a-z]+)")
+humanReadableTextReg = re.compile("(?<=[a-z0-9])([A-Z])|(?<=[A-Z0-9])([A-Z][a-z]+)")
 module_name_cut_version = re.compile("[>=<]")
 
 installed_modules = {}
@@ -275,6 +275,10 @@ from .ArgosTranslateNode.argos_translate_node import (
     ArgosTranslateCLIPTextEncodeNode,
     ArgosTranslateTextNode,
 )
+from .ChatGLMNode.chatglm_translate_node import (
+    ChatGLM4TranslateCLIPTextEncodeNode,
+    ChatGLM4TranslateTextNode,
+)
 from .DeepTranslatorNode.deep_translator_node import (
     DeepTranslatorCLIPTextEncodeNode,
     DeepTranslatorTextNode,
@@ -292,6 +296,8 @@ from .IDENode.ide_node import IDENode
 NODE_CLASS_MAPPINGS = {
     "ArgosTranslateCLIPTextEncodeNode": ArgosTranslateCLIPTextEncodeNode,
     "ArgosTranslateTextNode": ArgosTranslateTextNode,
+    "ChatGLM4TranslateCLIPTextEncodeNode": ChatGLM4TranslateCLIPTextEncodeNode,
+    "ChatGLM4TranslateTextNode": ChatGLM4TranslateTextNode,
     "DeepTranslatorCLIPTextEncodeNode": DeepTranslatorCLIPTextEncodeNode,
     "DeepTranslatorTextNode": DeepTranslatorTextNode,
     "PreviewTextNode": PreviewTextNode,
@@ -308,6 +314,8 @@ NODE_CLASS_MAPPINGS = {
 NODE_DISPLAY_NAME_MAPPINGS = {
     "ArgosTranslateCLIPTextEncodeNode": "Argos Translate CLIP Text Encode Node",
     "ArgosTranslateTextNode": "Argos Translate Text Node",
+    "ChatGLM4TranslateCLIPTextEncodeNode": "ChatGLM-4 Translate CLIP Text Encode Node",
+    "ChatGLM4TranslateTextNode": "ChatGLM-4 Translate Text Node",
     "DeepTranslatorCLIPTextEncodeNode": "Deep Translator CLIP Text Encode Node",
     "DeepTranslatorTextNode": "Deep Translator Text Node",
     "PreviewTextNode": "Preview Text Node",

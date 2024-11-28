@@ -16,7 +16,9 @@ import {
   createPreiviewSize,
   speechRect,
   SpeechSynthesis,
+  checkboxLSCheckedByKey,
 } from "./lib/extrasnode/extras_node_widgets.js";
+import { RecognationSpeechDialog } from "./lib/extrasnode/extras_node_dialogs.js";
 
 const convertIdClass = (text) => text.replaceAll(".", "_");
 const idExt = "alekpet.ExtrasNode";
@@ -32,8 +34,15 @@ const PreviewImageColorBgLS = localStorage.getItem(
   `Comfy.Settings.${idExt}.PreviewImageColorBg`
 );
 
+// Recognation & speech
 const SpeechAndRecognationSpeechLS = localStorage.getItem(
   `Comfy.Settings.${idExt}.SpeechAndRecognationSpeech`
+);
+// end - Recognation & speech
+
+// Preview image, video and audio select list combo
+const PreviewImageVideoComboLS = localStorage.getItem(
+  `Comfy.Settings.${idExt}.PreviewImageVideoCombo`
 );
 
 // Settings set values from LS or default
@@ -49,13 +58,215 @@ let PreviewImageSize = PreviewImageSizeLS
   // Speech & Recognition widget settings
   SpeechAndRecognationSpeech = SpeechAndRecognationSpeechLS
     ? JSON.parse(SpeechAndRecognationSpeechLS)
+    : true,
+  SpeechAndRecognationSpeechSaveAs = JSON.parse(
+    localStorage.getItem(`${idExt}.SpeechAndRecognationSpeechSaveAs`),
+    false
+  ),
+  // Preview image, video and audio select list combo
+  PreviewImageVideoCombo = PreviewImageVideoComboLS
+    ? JSON.parse(PreviewImageVideoComboLS)
     : true;
+
+// Preview image, video and audio content loading function
+const SUPPORTS_FORMAT = {
+  image: ["jpg", "jpeg", "bmp", "png", "gif", "tiff", "avif"],
+  video: ["mp4", "webm"],
+  audio: ["ogg", "wav", "mp3"],
+};
+
+const loadingContent = (src) => {
+  return new Promise((res, rej) => {
+    let ext = src.slice(src.lastIndexOf(".") + 1).toLowerCase();
+    ext = /\w+/.exec(ext)[0];
+
+    if (SUPPORTS_FORMAT.image.includes(ext)) {
+      const img = new Image();
+      img.crossOrigin = "";
+      img.onload = (e) => res({ raw: img, type: "image", src });
+      img.onerror = (err) => rej(err);
+      img.src = src;
+    } else if (SUPPORTS_FORMAT.video.includes(ext)) {
+      const video = document.querySelector(".preview_vid");
+      video.onerror = (err) => rej(err);
+
+      video.addEventListener("canplay", (e) => {
+        res({ raw: video, type: "video", src });
+      });
+      video.src = src;
+    } else if (SUPPORTS_FORMAT.audio.includes(ext)) {
+      const audio = document.querySelector(".preview_audio");
+      audio.onerror = (err) => rej(err);
+
+      audio.addEventListener("canplaythrough", (e) => {
+        res({ raw: audio, type: "audio", src });
+      });
+      audio.src = src;
+    }
+  });
+};
+
+function drawVid(raw, canvas, ctx, type) {
+  ctx.drawImage(raw, 0, 0, canvas.width, canvas.height);
+
+  canvas.requanim = requestAnimationFrame(
+    drawVid.bind(this, raw, canvas, ctx, type)
+  );
+}
+//
 
 // Register Extension
 app.registerExtension({
   name: idExt,
+
   init() {
     addStylesheet("css/extrasnode/extras_node_styles.css", import.meta.url);
+
+    // Preview image, video and audio select list combo
+    const addItem = LiteGraph.ContextMenu.prototype.addItem;
+    LiteGraph.ContextMenu.prototype.addItem = function () {
+      const element = addItem?.apply(this, arguments);
+
+      if (!PreviewImageVideoCombo) return;
+
+      const [name, value, options] = arguments;
+      if (value instanceof Object) return;
+
+      if (!this.root?.preview_content_combo) {
+        const preview_content_combo = $el(
+          "div.preview_content_combo",
+          {
+            style: {
+              position: "absolute",
+              maxWidth: "160px",
+              right: "calc(-1% - 160px)",
+            },
+            parent: this.root,
+          },
+          [
+            $el("canvas.preview_img", {
+              style: { width: "100%" },
+            }),
+            $el("video.preview_vid", {
+              style: { opacity: 0, width: 0, height: 0 },
+              crossOrigin: "anonymous",
+              autoplay: false,
+              muted: false,
+              preload: "auto",
+            }),
+            $el("audio.preview_audio", {
+              style: { opacity: 0, position: "absolute", left: 0 },
+              crossOrigin: "anonymous",
+              autoplay: false,
+              muted: false,
+              preload: "auto",
+              controls: true,
+            }),
+          ]
+        );
+
+        this.root.preview_content_combo = preview_content_combo;
+      }
+
+      LiteGraph.pointerListenerAdd(element, "enter", (e) => {
+        if (element?.dataset?.value) {
+          const body_rect = document.body.getBoundingClientRect();
+          const root_rect = this.root.getBoundingClientRect();
+          const { x, y } = element.getBoundingClientRect();
+
+          const scale = app.graph.extra.ds.scale;
+
+          const canvas = this.root.preview_content_combo.children[0];
+          const ctx = canvas.getContext("2d");
+
+          loadingContent(
+            api.apiURL(
+              `/view?filename=${encodeURIComponent(
+                element.dataset.value
+              )}&type=input`
+            )
+          ).then(({ raw, type, src }) => {
+            this.root.preview_content_combo.style.maxWidth =
+              type === "audio" ? "300px" : "160px";
+
+            const previewWidth = parseInt(
+              this.root.preview_content_combo.style.maxWidth
+            );
+
+            if (scale >= 1) {
+              this.root.preview_content_combo.style.top = `${
+                (y - root_rect.top) / scale
+              }px`;
+            } else {
+              this.root.preview_content_combo.style.top = `${
+                y - root_rect.top
+              }px`;
+            }
+
+            if (
+              body_rect.width &&
+              root_rect.right + previewWidth > body_rect.width
+            ) {
+              this.root.preview_content_combo.style.left = `${
+                -previewWidth - 10
+              }px`;
+              this.root.preview_content_combo.style.right = "auto";
+            } else {
+              this.root.preview_content_combo.style.left = "auto";
+              this.root.preview_content_combo.style.right = `calc(-1% - ${this.root.preview_content_combo.style.maxWidth})`;
+            }
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            const video = document.querySelector(".preview_vid");
+            const audio = document.querySelector(".preview_audio");
+
+            if (type === "image") {
+              canvas.width = raw.naturalWidth;
+              canvas.height = raw.naturalHeight;
+              if (!video.paused) {
+                video.pause();
+                video.currentTime = 0;
+              }
+              cancelAnimationFrame(canvas.requanim);
+            } else if (type === "video") {
+              canvas.width = raw.videoWidth;
+              canvas.height = raw.videoHeight;
+              video.play();
+            } else if (type === "audio") {
+              Object.assign(audio.style, {
+                opacity: 1,
+              });
+              audio.play();
+            }
+
+            if (type === "video" || type === "image") {
+              Object.assign(audio.style, {
+                opacity: 0,
+              });
+              !audio.paused && audio.pause();
+              ctx.drawImage(raw, 0, 0, canvas.width, canvas.height);
+            }
+
+            if (type === "video")
+              canvas.requanim = requestAnimationFrame(
+                drawVid.bind(this, raw, canvas, ctx, type)
+              );
+          });
+        }
+      });
+
+      LiteGraph.pointerListenerAdd(element, "leave", (e) => {
+        if (element?.dataset?.value) {
+          const canvas = this.root.preview_content_combo.children[0];
+          const video = document.querySelector(".preview_vid");
+          if (!video.paused) {
+            video.pause();
+            video.currentTime = 0;
+          }
+          cancelAnimationFrame(canvas.requanim);
+        }
+      });
+    };
 
     // PreviewImage settings ui
     app.ui.settings.addSetting({
@@ -226,15 +437,57 @@ app.registerExtension({
                 }),
               ]
             ),
-            // $el("button", {
-            //   textContent: "Default reset",
-            //   onclick: () => {},
-            //   style: {
-            //     display: "block",
-            //   },
-            // }),
+            $el(
+              "div",
+              {
+                style: {
+                  display: "flex",
+                  gap: "5px",
+                  margin: "5px 0",
+                },
+                title: "Show modal window when saving recorded audio.",
+              },
+              [
+                $el("span", { textContent: "Output Save as?" }),
+                $el("input", {
+                  type: "checkbox",
+                  checked: SpeechAndRecognationSpeechSaveAs,
+                  onchange: (e) => {
+                    localStorage.setItem(
+                      `${idExt}.SpeechAndRecognationSpeechSaveAs`,
+                      !!e.target.checked
+                    );
+                    SpeechAndRecognationSpeechSaveAs = !!e.target.checked;
+                    checkboxLSCheckedByKey(
+                      `${idExt}.SpeechAndRecognationSpeechSaveAs`,
+                      ".alekpet_extras_node_recognition_saveAs"
+                    );
+                  },
+                }),
+              ]
+            ),
+            $el("button", {
+              textContent: "Speech settings",
+              onclick: () => {
+                new RecognationSpeechDialog().show();
+              },
+              style: {
+                display: "block",
+              },
+            }),
           ]),
         ]);
+      },
+    });
+
+    // Preview image, video and audio settings ui
+    app.ui.settings.addSetting({
+      id: `${idExt}.PreviewImageVideoCombo`,
+      name: "🔸 Preview images and videos in the list",
+      defaultValue: true,
+      type: "boolean",
+      onChange(value) {
+        PreviewImageVideoCombo = value;
       },
     });
   },
@@ -303,14 +556,7 @@ app.registerExtension({
           onExecuted?.apply(this, arguments);
           outSet.call(this, texts?.string);
         };
-        // onConfigure
-        const onConfigure = nodeType.prototype.onConfigure;
-        nodeType.prototype.onConfigure = function (w) {
-          onConfigure?.apply(this, arguments);
-          if (w?.widgets_values?.length) {
-            outSet.call(this, w.widgets_values);
-          }
-        };
+
         break;
       }
       // --- Preview Text Node
@@ -448,85 +694,101 @@ app.registerExtension({
       }
 
       default: {
-        // -- Speech & Recognition speech widget
-        // If ui settings is true and SpeechSynthesis or speechRecognition is not undefined
-        if (SpeechAndRecognationSpeech && (speechRect || SpeechSynthesis)) {
-          let nodeIsMultiString = false;
-
-          if (nodeData?.input && nodeData?.input?.required) {
-            for (const inp of Object.keys(nodeData.input.required)) {
-              if (nodeData.input.required[inp][1]?.multiline) {
-                const type = nodeData.input.required[inp][0];
-
-                if (["STRING"].includes(type)) {
-                  nodeIsMultiString = true;
-                  break;
-                }
-              }
-            }
-          }
-
-          if (nodeIsMultiString) {
-            // Node Created
-            const onNodeCreated = nodeType.prototype.onNodeCreated;
-            nodeType.prototype.onNodeCreated = async function () {
-              const ret = onNodeCreated
-                ? onNodeCreated.apply(this, arguments)
-                : undefined;
-
-              // Find all widget type customtext
-              const widgetsTextMulti = this?.widgets?.filter((w) =>
-                ["customtext", "converted-widget"].includes(w.type)
-              );
-
-              await new Promise((res) =>
-                setTimeout(() => {
-                  res();
-                }, 16 * this.widgets.length)
-              );
-
-              if (widgetsTextMulti.length) {
-                widgetsTextMulti.forEach(async (w) => {
-                  this.addCustomWidget(
-                    SpeechWidget(this, "speak_and_recognation", true, w)
-                  );
-                });
-              }
-
-              return ret;
-            };
-
-            // onConfigure
-            const onConfigure = nodeType.prototype.onConfigure;
-            nodeType.prototype.onConfigure = async function (w) {
-              onConfigure?.apply(this, arguments);
-              if (w?.widgets_values?.length) {
-                await new Promise((res) =>
-                  setTimeout(() => {
-                    res();
-                  }, 16 * this.widgets.length)
-                );
-
-                const ids_speech_clear = this.widgets.reduce(function (
-                  arr,
-                  el,
-                  idx
-                ) {
-                  if (el.type === "speak_and_recognation_type") arr.push(idx);
-                  return arr;
-                },
-                []);
-
-                for (const id of ids_speech_clear)
-                  this?.widgets[id]?.callback(w.widgets_values[id]);
-              }
-            };
-          }
-        }
-        // -- end - Speech & Recognition speech widget
-
         break;
       }
     }
+
+    // -- Speech & Recognition speech widget
+    // If ui settings is true and SpeechSynthesis or speechRecognition is not undefined
+    if (SpeechAndRecognationSpeech && (speechRect || SpeechSynthesis)) {
+      let nodeIsMultiString = false;
+      let outputNode = false;
+
+      if (nodeData?.input && nodeData?.input?.required) {
+        for (const inp of Object.keys(nodeData.input.required)) {
+          if (nodeData.input.required[inp][1]?.multiline) {
+            const type = nodeData.input.required[inp][0];
+
+            if (["STRING"].includes(type)) {
+              nodeIsMultiString = true;
+              break;
+            }
+          }
+        }
+      }
+
+      if (nodeData?.output) {
+        for (const out of nodeData.output) {
+          if (["STRING"].includes(out)) {
+            nodeIsMultiString = true;
+            outputNode = true;
+            break;
+          }
+        }
+      }
+
+      if (nodeIsMultiString) {
+        // Node Created
+        const onNodeCreated = nodeType.prototype.onNodeCreated;
+        nodeType.prototype.onNodeCreated = async function () {
+          const ret = onNodeCreated
+            ? onNodeCreated.apply(this, arguments)
+            : undefined;
+
+          // Find all widget type customtext
+          const widgetsTextMulti = this?.widgets?.filter((w) =>
+            !outputNode
+              ? ["customtext", "converted-widget"].includes(w.type)
+              : ["customtext"].includes(w.type)
+          );
+          const isIncludesSpeech = this?.widgets?.some(
+            (w) => w.type === "speak_and_recognation_type"
+          );
+
+          await new Promise((res) =>
+            setTimeout(() => {
+              res();
+            }, 16 * this.widgets.length)
+          );
+
+          if (!isIncludesSpeech && widgetsTextMulti.length) {
+            widgetsTextMulti.forEach(async (w) => {
+              this.addCustomWidget(
+                SpeechWidget(this, "speak_and_recognation", [false, true], w)
+              );
+            });
+          }
+
+          return ret;
+        };
+
+        // onConfigure
+        const onConfigure = nodeType.prototype.onConfigure;
+        nodeType.prototype.onConfigure = async function (w) {
+          onConfigure?.apply(this, arguments);
+          if (w?.widgets_values?.length) {
+            await new Promise((res) =>
+              setTimeout(() => {
+                res();
+              }, 16 * this.widgets.length)
+            );
+
+            const ids_speech_clear = this.widgets.reduce(function (
+              arr,
+              el,
+              idx
+            ) {
+              if (el.type === "speak_and_recognation_type") arr.push(idx);
+              return arr;
+            },
+            []);
+
+            for (const id of ids_speech_clear)
+              this?.widgets[id]?.callback(w.widgets_values[id]);
+          }
+        };
+      }
+    }
+    // -- end - Speech & Recognition speech widget
   },
 });

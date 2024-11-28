@@ -1,3 +1,8 @@
+.canvas-container-painter {
+  position: absolute !important;
+  left: 0;
+  top: 0;
+}
 .panelPaintBox {
   position: absolute;
   width: 100%;
@@ -137,6 +142,8 @@
   flex-direction: column;
   align-items: center;
   overflow-y: auto;
+  scrollbar-color: var(--descrip-text) var(--bg-color);
+  scrollbar-width: thin;
   max-height: 350px;
 }
 .list_objects_panel__items button {
