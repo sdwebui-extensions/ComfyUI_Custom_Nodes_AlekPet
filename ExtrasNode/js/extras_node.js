@@ -72,7 +72,7 @@ let PreviewImageSize = PreviewImageSizeLS
 const SUPPORTS_FORMAT = {
   image: ["jpg", "jpeg", "bmp", "png", "gif", "tiff", "avif"],
   video: ["mp4", "webm"],
-  audio: ["ogg", "wav", "mp3"],
+  audio: ["ogg", "wav", "mp3", "webm"],
 };
 
 const loadingContent = (src) => {
@@ -86,15 +86,21 @@ const loadingContent = (src) => {
       img.onload = (e) => res({ raw: img, type: "image", src });
       img.onerror = (err) => rej(err);
       img.src = src;
-    } else if (SUPPORTS_FORMAT.video.includes(ext)) {
+    }
+
+    if (SUPPORTS_FORMAT.video.includes(ext)) {
       const video = document.querySelector(".preview_vid");
       video.onerror = (err) => rej(err);
 
       video.addEventListener("canplay", (e) => {
-        res({ raw: video, type: "video", src });
+        if (video.videoWidth !== 0) {
+          res({ raw: video, type: "video", src });
+        }
       });
       video.src = src;
-    } else if (SUPPORTS_FORMAT.audio.includes(ext)) {
+    }
+
+    if (SUPPORTS_FORMAT.audio.includes(ext)) {
       const audio = document.querySelector(".preview_audio");
       audio.onerror = (err) => rej(err);
 
@@ -122,14 +128,22 @@ app.registerExtension({
   init() {
     addStylesheet("css/extrasnode/extras_node_styles.css", import.meta.url);
 
-    // Preview image, video and audio select list combo
-    const addItem = LiteGraph.ContextMenu.prototype.addItem;
-    LiteGraph.ContextMenu.prototype.addItem = function () {
-      const element = addItem?.apply(this, arguments);
+    // -- Preview image, audio, video --
 
+    // Close when click on item inside context menu
+    function closePreviewContextClick() {
+      if (this.root?.preview_content_combo) {
+        this.root.preview_content_combo.remove();
+        this.root.preview_content_combo = null;
+      }
+    }
+
+    // Add preview element
+    function addPreviewModule(params, element) {
       if (!PreviewImageVideoCombo) return;
 
-      const [name, value, options] = arguments;
+      const [name, value, options] = params;
+
       if (value instanceof Object) return;
 
       if (!this.root?.preview_content_combo) {
@@ -139,9 +153,9 @@ app.registerExtension({
             style: {
               position: "absolute",
               maxWidth: "160px",
-              right: "calc(-1% - 160px)",
+              zIndex: 9999999,
             },
-            parent: this.root,
+            parent: document.body,
           },
           [
             $el("canvas.preview_img", {
@@ -208,12 +222,12 @@ app.registerExtension({
               root_rect.right + previewWidth > body_rect.width
             ) {
               this.root.preview_content_combo.style.left = `${
-                -previewWidth - 10
+                root_rect.left - previewWidth - 10
               }px`;
-              this.root.preview_content_combo.style.right = "auto";
             } else {
-              this.root.preview_content_combo.style.left = "auto";
-              this.root.preview_content_combo.style.right = `calc(-1% - ${this.root.preview_content_combo.style.maxWidth})`;
+              this.root.preview_content_combo.style.left = `${
+                root_rect.left + root_rect.width + 10
+              }px`;
             }
 
             ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -266,7 +280,51 @@ app.registerExtension({
           cancelAnimationFrame(canvas.requanim);
         }
       });
+    }
+
+    // AddItem
+    const addItem = ContextMenu.prototype.addItem;
+    ContextMenu.prototype.addItem = function () {
+      const element = addItem?.apply(this, arguments);
+
+      addPreviewModule.call(this, arguments, element);
     };
+
+    // CloseItem
+    const closeItem = ContextMenu.prototype.close;
+    ContextMenu.prototype.close = function () {
+      closeItem?.apply(this, arguments);
+
+      closePreviewContextClick.call(this);
+    };
+
+    // Old verison comfyui, support context menu LiteGraph path...
+    // AddItem
+    const addItemLitegraph = LiteGraph.ContextMenu.prototype.addItem;
+    LiteGraph.ContextMenu.prototype.addItem = function () {
+      const element = addItemLitegraph?.apply(this, arguments);
+
+      addPreviewModule.call(this, arguments, element);
+    };
+
+    // CloseItem
+    const closeItemLitegraph = LiteGraph.ContextMenu.prototype.close;
+    LiteGraph.ContextMenu.prototype.close = function () {
+      closeItemLitegraph?.apply(this, arguments);
+
+      closePreviewContextClick.call(this);
+    };
+
+    const originalCloseAllContextMenus = LiteGraph.closeAllContextMenus;
+    LiteGraph.closeAllContextMenus = function () {
+      originalCloseAllContextMenus?.apply(this, arguments);
+
+      const previewCombo = document.querySelector(".preview_content_combo");
+      if (previewCombo) {
+        previewCombo.remove();
+      }
+    };
+    // -- end - Preview image, audio, video --
 
     // PreviewImage settings ui
     app.ui.settings.addSetting({
