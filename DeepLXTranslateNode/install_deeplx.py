@@ -23,7 +23,7 @@ GO_URLS = {
     "win64": "https://go.dev/dl/go1.24.2.windows-amd64.zip",
     "darwin": "https://go.dev/dl/go1.24.2.darwin-arm64.tar.gz",
     "linux_i386_i686": "https://go.dev/dl/go1.24.2.linux-386.tar.gz",
-    "linux_x86_64": "https://go.dev/dl/go1.24.3.linux-amd64.tar.gz",
+    "linux_x86_64": "https://xuanyuan-hz.oss-cn-hangzhou.aliyuncs.com/go1.24.3.linux-amd64.tar.gz",
     "linux_aarch64": "https://go.dev/dl/go1.24.3.linux-arm64.tar.gz",
     "linux_armv6l": "https://go.dev/dl/go1.24.3.linux-armv6l.tar.gz",
     }
