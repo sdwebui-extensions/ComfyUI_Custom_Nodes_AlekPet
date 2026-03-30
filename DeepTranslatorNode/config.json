@@ -92,7 +92,8 @@
       "auth_input_in_node": false,
       "proxyes_input_in_node": false,
       "show_services_no_check_api": false,
-      "help_text_services": true
+      "help_text_services": true,
+      "hide_keys": true
     }
   }
 }
